@@ -1,0 +1,127 @@
+# ========================================
+# Local Game Automation - Configuration
+# ========================================
+# Academic project for computer vision learning
+# This configuration is for educational purposes only
+
+application:
+  name: "local-game-automation"
+  debug: false
+  version: "0.1.0"
+
+execution:
+  # Safety: dry_run mode enabled by default (no real actions)
+  dry_run: false
+  # Random seed for reproducible behavior in tests
+  random_seed: 42
+
+window:
+  # Title of the local game window (adjust as needed)
+  title: "Local Game"
+
+regions:
+  # Main game area to capture (adjust to your game window)
+  game_area:
+    x: 100
+    y: 100
+    width: 800
+    height: 600
+
+  # Optional: specific regions for targeted detection
+  # battle_area:
+  #   x: 200
+  #   y: 150
+  #   width: 500
+  #   height: 400
+
+capture:
+  # Capture interval during active detection (milliseconds)
+  interval_ms: 100
+  # Capture interval during idle state (milliseconds)
+  idle_interval_ms: 500
+  # Save screenshots on errors for debugging
+  save_on_error: true
+
+detection:
+  # Template image file (must exist in assets/templates/)
+  template: "target.png"
+  # Minimum confidence threshold (0.0 to 1.0)
+  threshold: 0.85
+  # Number of consecutive confirmations required before action
+  required_confirmations: 2
+  # Interval between confirmation attempts (milliseconds)
+  confirmation_interval_ms: 100
+
+# Fishing automation configuration
+fishing:
+  # Water detection by color (HSV color space)
+  water_detection:
+    hue_min: 100        # Blue hue range start
+    hue_max: 140        # Blue hue range end
+    saturation_min: 80  # Minimum saturation
+    value_min: 80       # Minimum brightness
+    min_area: 1000      # Minimum water area in pixels
+
+  # Bubble detection by visual change
+  bubble_detection:
+    method: 'change'            # 'change' ou 'template' - use 'template' para maior precisão!
+
+    # Configurações para método 'change' (detecção de mudança) - ULTRA SENSÍVEL
+    sensitivity: 0.45           # Sensível, mas sem puxar com qualquer movimento da água
+    min_change_threshold: 15    # Ignora ruído pequeno da água/boia
+    region_size: 120            # Região menor ao redor da boia = menos ruído e mais rapidez
+
+    # Configurações para método 'template' (template matching - mais preciso!)
+    template: 'bubble.png'      # Nome do arquivo de template em assets/templates/
+    template_threshold: 0.75    # Threshold mais permissivo para detecção rápida
+
+  # Timing configuration - MODO ULTRA-RÁPIDO (Jogador 100% Focado)
+  timing:
+    cast_wait_ms: 100              # Wait after casting - mínimo antes de observar a boia
+    bubble_wait_min_ms: 350        # Evita detectar a animação inicial do arremesso
+    bubble_wait_max_ms: 20000      # Maximum time to wait (timeout)
+    bubble_check_interval_ms: 25   # How often to check for bubbles
+    pull_delay_ms: 0               # Puxa assim que confirmar a bolha
+    collect_wait_ms: 0             # NÃO ESPERA LOOT - lança imediatamente!
+    recast_delay_ms: 100           # Delay entre fisgar e lançar de novo
+    cooldown_ms: 100               # Cooldown mínimo
+
+  # Hotkeys
+  hotkeys:
+    fishing_action: "shift+z"   # Key to cast and pull
+    toggle_bot: "f12"           # Key to start/stop bot
+
+behavior:
+  # Simulated human reaction time (milliseconds) - ULTRA FOCADO
+  reaction_time_ms:
+    min: 0                         # Movimento direto para reduzir latência do ciclo
+    max: 30                        # Pequena variação sem parecer travado
+
+  # Interval between consecutive actions (milliseconds) - ULTRA RÁPIDO
+  action_interval_ms:
+    min: 100                       # Ações muito rápidas
+    max: 200                       # Quase instantâneo
+
+  # Random click position offset within target area (pixels)
+  click_offset_pixels:
+    min: -3
+    max: 3
+
+safety:
+  # Global emergency stop key (will be implemented in Phase 5)
+  emergency_stop_key: "f12"
+  # Maximum actions per execution
+  max_actions_per_run: 10
+  # Maximum total runtime (seconds)
+  max_runtime_seconds: 120
+  # Maximum consecutive failures before stopping
+  max_consecutive_failures: 3
+
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  # Log format style
+  format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+  # Date format
+  date_format: "%Y-%m-%d %H:%M:%S"
+

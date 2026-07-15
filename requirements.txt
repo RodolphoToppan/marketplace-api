@@ -1,0 +1,16 @@
+# Core dependencies
+mss>=9.0.1          # Fast screen capture
+opencv-python>=4.8.0  # Computer vision
+numpy>=1.24.0       # Array operations
+pyyaml>=6.0         # YAML configuration
+pydantic>=2.5.0     # Configuration validation
+
+# Input control
+pyautogui>=0.9.54   # Keyboard and mouse control
+keyboard>=0.13.5    # Global hotkey support
+
+# Development and testing
+pytest>=7.4.0       # Testing framework
+pytest-cov>=4.1.0   # Coverage reports
+
+

@@ -1,0 +1,51 @@
+# COPIE ESTE BLOCO PARA O SEU config.yaml
+
+# Cole isso a partir da linha "fishing:"
+
+fishing:
+  # Water detection by color (HSV color space)
+  water_detection:
+    hue_min: 100
+    hue_max: 140
+    saturation_min: 80
+    value_min: 80
+    min_area: 1000
+
+  # Bubble detection - ULTRA-OTIMIZADO (baseado em 66 frames!)
+  bubble_detection:
+    method: 'change'
+    sensitivity: 0.30
+    min_change_threshold: 12
+    region_size: 150
+    template: 'bubble.png'
+    template_threshold: 0.70
+
+  # Timing - ULTRA-RÁPIDO!
+  timing:
+    cast_wait_ms: 200
+    bubble_wait_min_ms: 500
+    bubble_wait_max_ms: 20000
+    bubble_check_interval_ms: 30
+    pull_delay_ms: 60
+    collect_wait_ms: 0
+    recast_delay_ms: 800
+    cooldown_ms: 150
+
+  # Hotkeys
+  hotkeys:
+    fishing_action: "shift+z"
+    toggle_bot: "f12"
+
+# Cole isso a partir da linha "behavior:"
+
+behavior:
+  reaction_time_ms:
+    min: 60
+    max: 120
+  action_interval_ms:
+    min: 80
+    max: 180
+  click_offset_pixels:
+    min: -3
+    max: 3
+

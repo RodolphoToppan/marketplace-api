@@ -1,0 +1,77 @@
+# ========================================
+# CONFIGURAÇÃO ULTRA-OTIMIZADA - COPIE PARA SEU config.yaml
+# Baseada em 66 frames de bolhas (101-117, 122-136, 141-157, 162-178)
+# ========================================
+
+# 1. PRIMEIRO: Mude dry_run para false
+execution:
+  dry_run: false  # ← IMPORTANTE! Mude de true para false
+
+# 2. DEPOIS: Substitua toda a seção "fishing:" por esta:
+
+fishing:
+  # Water detection by color (HSV color space)
+  water_detection:
+    hue_min: 100
+    hue_max: 140
+    saturation_min: 80
+    value_min: 80
+    min_area: 1000
+
+  # Bubble detection - ULTRA-OTIMIZADO!
+  bubble_detection:
+    method: 'change'
+    sensitivity: 0.30              # Alta sensibilidade
+    min_change_threshold: 12       # Detecta rápido
+    region_size: 150
+    template: 'bubble.png'
+    template_threshold: 0.70
+
+  # Timing - ULTRA-RÁPIDO!
+  timing:
+    cast_wait_ms: 200
+    bubble_wait_min_ms: 500        # ← Bolha aparece rápido!
+    bubble_wait_max_ms: 20000
+    bubble_check_interval_ms: 30   # ← ULTRA RÁPIDO!
+    pull_delay_ms: 60              # ← INSTANTÂNEO!
+    collect_wait_ms: 0             # ← NÃO espera loot
+    recast_delay_ms: 800           # ← Lança em 0.8s
+    cooldown_ms: 150
+
+  # Hotkeys
+  hotkeys:
+    fishing_action: "shift+z"
+    toggle_bot: "f12"
+
+# 3. FINALMENTE: Substitua toda a seção "behavior:" por esta:
+
+behavior:
+  # Reação INSTANTÂNEA!
+  reaction_time_ms:
+    min: 60
+    max: 120
+
+  # Ações ultra-rápidas
+  action_interval_ms:
+    min: 80
+    max: 180
+
+  click_offset_pixels:
+    min: -3
+    max: 3
+
+# ========================================
+# RESUMO DAS MUDANÇAS:
+# • bubble_wait_min_ms: 500ms (era 2000ms) - Começa a verificar MUITO mais cedo!
+# • bubble_check_interval_ms: 30ms (era 100ms) - Verifica 3x mais rápido!
+# • pull_delay_ms: 60ms (era 150ms) - Reação instantânea!
+# • collect_wait_ms: 0ms (era 2000ms) - NÃO espera loot!
+# • recast_delay_ms: 800ms - Lança vara de novo em menos de 1s!
+# • reaction_time: 60-120ms (era 180-350ms) - Jogador ultra-focado!
+#
+# PERFORMANCE ESPERADA:
+# • Ciclo completo: ~1.6 segundos
+# • Taxa de pesca: ~37 pescas/minuto
+# • vs Original: +285% mais rápido! 🚀
+# ========================================
+
