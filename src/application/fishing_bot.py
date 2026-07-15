@@ -110,6 +110,7 @@ class FishingBot:
 
         # Last water position
         self._last_water_pos: Optional[Tuple[int, int]] = None
+        self._rod_cast_for_next_cycle = False
 
         logger.info("FishingBot initialized")
 
@@ -184,18 +185,21 @@ class FishingBot:
 
     def _execute_fishing_cycle(self) -> None:
         """Execute one complete fishing cycle - MODO ULTRA-RÁPIDO."""
-        # Step 1: Detect water
-        water_pos = self._detect_water()
-        if water_pos is None:
-            logger.warning("Could not detect water, retrying...")
-            time.sleep(0.5)  # Reduzido de 1.0 para 0.5
-            return
+        if self._rod_cast_for_next_cycle:
+            self._rod_cast_for_next_cycle = False
+        else:
+            # Step 1: Detect water
+            water_pos = self._detect_water()
+            if water_pos is None:
+                logger.warning("Could not detect water, retrying...")
+                time.sleep(0.5)  # Reduzido de 1.0 para 0.5
+                return
 
-        # Step 2: Position mouse
-        self._position_mouse(water_pos)
+            # Step 2: Position mouse
+            self._position_mouse(water_pos)
 
-        # Step 3: Cast rod
-        self._cast_rod()
+            # Step 3: Cast rod
+            self._cast_rod()
 
         # Step 4: Wait for bubble
         bubble_detected = self._wait_for_bubble()
@@ -209,6 +213,10 @@ class FishingBot:
             total_wait = self.settings.fishing.timing.collect_wait_ms + self.settings.fishing.timing.recast_delay_ms
             if total_wait > 0:
                 time.sleep(total_wait / 1000)
+
+            if self.running:
+                self._cast_rod()
+                self._rod_cast_for_next_cycle = True
 
             self.stats["successful_catches"] += 1
         else:
@@ -467,4 +475,3 @@ class FishingBot:
         if self.running:
             self.stop()
         self.unregister_hotkeys()
-

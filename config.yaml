@@ -11,7 +11,7 @@ application:
 
 execution:
   # Safety: dry_run mode enabled by default (no real actions)
-  dry_run: false
+  dry_run: true
   # Random seed for reproducible behavior in tests
   random_seed: 42
 
@@ -83,7 +83,7 @@ fishing:
     bubble_check_interval_ms: 25   # How often to check for bubbles
     pull_delay_ms: 0               # Puxa assim que confirmar a bolha
     collect_wait_ms: 0             # NÃO ESPERA LOOT - lança imediatamente!
-    recast_delay_ms: 100           # Delay entre fisgar e lançar de novo
+    recast_delay_ms: 1000          # 1s entre fisgar e lançar de novo
     cooldown_ms: 100               # Cooldown mínimo
 
   # Hotkeys
@@ -124,4 +124,3 @@ logging:
   format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
   # Date format
   date_format: "%Y-%m-%d %H:%M:%S"
-
