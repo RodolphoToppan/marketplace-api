@@ -1,6 +1,7 @@
 """Keyboard control implementation."""
 
 import time
+import ctypes
 from typing import Optional
 import keyboard
 import pyautogui
@@ -104,6 +105,7 @@ class KeyboardController:
 
         errors = []
         for action in (
+            self._sendinput_space,
             lambda: keyboard.press_and_release("space"),
             lambda: keyboard.press_and_release(57),
             lambda: pyautogui.press("space"),
@@ -116,6 +118,37 @@ class KeyboardController:
                 errors.append(str(e))
 
         raise RuntimeError(f"Failed to press space: {'; '.join(errors)}")
+
+    def _sendinput_space(self) -> None:
+        """Press space using a Windows scan-code SendInput event."""
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        extra = ctypes.c_ulong(0)
+
+        class KeyBdInput(ctypes.Structure):
+            _fields_ = [
+                ("wVk", ctypes.c_ushort),
+                ("wScan", ctypes.c_ushort),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+            ]
+
+        class InputUnion(ctypes.Union):
+            _fields_ = [("ki", KeyBdInput)]
+
+        class Input(ctypes.Structure):
+            _fields_ = [("type", ctypes.c_ulong), ("union", InputUnion)]
+
+        def make_input(flags: int) -> Input:
+            return Input(1, InputUnion(ki=KeyBdInput(0, 0x39, flags, 0, ctypes.pointer(extra))))
+
+        inputs = (Input * 2)(
+            make_input(0x0008),
+            make_input(0x0008 | 0x0002),
+        )
+        sent = user32.SendInput(2, ctypes.byref(inputs), ctypes.sizeof(Input))
+        if sent != 2:
+            raise ctypes.WinError(ctypes.get_last_error())
 
     def hold_key(self, key: str, duration: float) -> None:
         """
