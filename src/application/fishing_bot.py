@@ -276,8 +276,7 @@ class FishingBot:
                 fish_y, bar_y = challenge
 
                 if bar_y > fish_y + 8:
-                    logger.info("🎯 Pressing SPACE for fishing challenge")
-                    self.input_controller.keyboard.press_space_for_game()
+                    self.input_controller.keyboard.press_space_for_game(duration=0.12)
                 else:
                     time.sleep(0.03)
 

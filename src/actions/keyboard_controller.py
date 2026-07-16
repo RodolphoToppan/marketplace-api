@@ -97,7 +97,7 @@ class KeyboardController:
             logger.error(f"Failed to press hotkey {keys}: {e}")
             raise
 
-    def press_space_for_game(self) -> None:
+    def press_space_for_game(self, duration: float = 0.12) -> None:
         """Try the common input paths games accept for the space key."""
         if self.dry_run:
             logger.info("DRY_RUN - press_space_for_game()")
@@ -105,10 +105,9 @@ class KeyboardController:
 
         errors = []
         for action in (
-            self._sendinput_space,
-            lambda: keyboard.press_and_release("space"),
-            lambda: keyboard.press_and_release(57),
-            lambda: pyautogui.press("space"),
+            lambda: self._sendinput_space(duration),
+            lambda: self.press_key("space", duration=duration),
+            lambda: pyautogui.hold("space", duration),
         ):
             try:
                 action()
@@ -119,7 +118,7 @@ class KeyboardController:
 
         raise RuntimeError(f"Failed to press space: {'; '.join(errors)}")
 
-    def _sendinput_space(self) -> None:
+    def _sendinput_space(self, duration: float) -> None:
         """Press space using a Windows scan-code SendInput event."""
         user32 = ctypes.WinDLL("user32", use_last_error=True)
         extra = ctypes.c_ulong(0)
@@ -142,12 +141,17 @@ class KeyboardController:
         def make_input(flags: int) -> Input:
             return Input(1, InputUnion(ki=KeyBdInput(0, 0x39, flags, 0, ctypes.pointer(extra))))
 
-        inputs = (Input * 2)(
-            make_input(0x0008),
-            make_input(0x0008 | 0x0002),
-        )
-        sent = user32.SendInput(2, ctypes.byref(inputs), ctypes.sizeof(Input))
-        if sent != 2:
+        key_down = make_input(0x0008)
+        key_up = make_input(0x0008 | 0x0002)
+
+        sent = user32.SendInput(1, ctypes.byref(key_down), ctypes.sizeof(Input))
+        if sent != 1:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        time.sleep(duration)
+
+        sent = user32.SendInput(1, ctypes.byref(key_up), ctypes.sizeof(Input))
+        if sent != 1:
             raise ctypes.WinError(ctypes.get_last_error())
 
     def hold_key(self, key: str, duration: float) -> None:
