@@ -41,7 +41,9 @@ class KeyboardController:
             return
 
         try:
-            keyboard.press_and_release(key)
+            keyboard.press(key)
+            time.sleep(duration)
+            keyboard.release(key)
             logger.info(f"✓ Pressed key: {key}")
         except Exception as e:
             logger.error(f"Failed to press key '{key}': {e}")

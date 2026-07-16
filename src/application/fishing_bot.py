@@ -257,44 +257,35 @@ class FishingBot:
                 return False
 
             logger.info("🎯 Fishing challenge detected")
-            space_down = False
             missing_frames = 0
             deadline = time.time() + 30
 
-            try:
-                while self.running and time.time() < deadline:
-                    frame = self.screen_capture.capture(self.game_region)
-                    challenge = self._locate_challenge(frame)
+            while self.running and time.time() < deadline:
+                frame = self.screen_capture.capture(self.game_region)
+                challenge = self._locate_challenge(frame)
 
-                    if challenge is None:
-                        missing_frames += 1
-                        if missing_frames >= 5:
-                            logger.info("✅ Fishing challenge finished")
-                            return True
-                        time.sleep(0.05)
-                        continue
+                if challenge is None:
+                    missing_frames += 1
+                    if missing_frames >= 5:
+                        logger.info("✅ Fishing challenge finished")
+                        return True
+                    time.sleep(0.05)
+                    continue
 
-                    missing_frames = 0
-                    fish_y, bar_y = challenge
+                missing_frames = 0
+                fish_y, bar_y = challenge
 
-                    if bar_y > fish_y + 8 and not space_down:
-                        self.input_controller.keyboard.key_down("space")
-                        space_down = True
-                    elif bar_y < fish_y - 8 and space_down:
-                        self.input_controller.keyboard.key_up("space")
-                        space_down = False
-
+                if bar_y > fish_y + 8:
+                    self.input_controller.keyboard.press_key("space", duration=0.04)
+                else:
                     time.sleep(0.03)
-            finally:
-                if space_down:
-                    self.input_controller.keyboard.key_up("space")
 
         logger.warning("Fishing challenge timed out")
         return False
 
     def _wait_for_challenge(self, screen_capture: ScreenCapture) -> Optional[Tuple[float, float]]:
         """Wait briefly for the fishing challenge UI after pulling."""
-        deadline = time.time() + 1.5
+        deadline = time.time() + 0.35
         while self.running and time.time() < deadline:
             frame = screen_capture.capture(self.game_region)
             challenge = self._locate_challenge(frame)
@@ -549,7 +540,7 @@ class FishingBot:
         consecutive_detections = 0
         stable_frames = 0
         detector_armed = False
-        arming_timeout_ms = 1200
+        arming_timeout_ms = 700
         change_threshold = max(0.2, (1.0 - self.settings.fishing.bubble_detection.sensitivity) * 5)
 
         with self.screen_capture:
@@ -576,7 +567,7 @@ class FishingBot:
                     else:
                         stable_frames = 0
 
-                    if stable_frames >= 3 or elapsed >= arming_timeout_ms:
+                    if stable_frames >= 2 or elapsed >= arming_timeout_ms:
                         detector_armed = True
                     else:
                         time.sleep(check_interval / 1000)
@@ -587,7 +578,7 @@ class FishingBot:
                 else:
                     consecutive_detections = 0
 
-                if consecutive_detections >= 4:
+                if consecutive_detections >= 3:
                     logger.info(f"💧 Bubble DETECTED! time={elapsed:.0f}ms, change={percentage:.2f}%")
                     return True
 
