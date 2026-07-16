@@ -3,7 +3,9 @@
 import time
 import threading
 from typing import Optional, Tuple
+import cv2
 import numpy as np
+from pathlib import Path
 
 from ..domain import AutomationState
 from ..configuration import Settings
@@ -111,8 +113,23 @@ class FishingBot:
         # Last water position
         self._last_water_pos: Optional[Tuple[int, int]] = None
         self._rod_already_cast = False
+        self._challenge_fish_templates = self._load_challenge_fish_templates()
 
         logger.info("FishingBot initialized")
+
+    def _load_challenge_fish_templates(self) -> list[np.ndarray]:
+        """Load color-agnostic fish templates for the optional challenge."""
+        templates = []
+        template_dir = Path("assets/templates")
+        for path in sorted(template_dir.glob("fishing_challenge_fish_*.png")):
+            image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+            if image is not None and image.size:
+                templates.append(cv2.Canny(image, 50, 150))
+
+        if templates:
+            logger.info(f"Loaded {len(templates)} fishing challenge fish templates")
+
+        return templates
 
     def _change_state(self, new_state: AutomationState) -> None:
         """Change bot state with logging."""
@@ -208,6 +225,7 @@ class FishingBot:
         if bubble_detected:
             self._pull_fish()
 
+            self._handle_fishing_challenge()
             self._recast_rod()
 
             self.stats["successful_catches"] += 1
@@ -230,6 +248,140 @@ class FishingBot:
         if self.running:
             self._cast_rod()
             self._rod_already_cast = True
+
+    def _handle_fishing_challenge(self) -> bool:
+        """Solve the optional fishing challenge when it appears."""
+        with self.screen_capture:
+            challenge = self._wait_for_challenge(self.screen_capture)
+            if challenge is None:
+                return False
+
+            logger.info("🎯 Fishing challenge detected")
+            space_down = False
+            missing_frames = 0
+            deadline = time.time() + 30
+
+            try:
+                while self.running and time.time() < deadline:
+                    frame = self.screen_capture.capture(self.game_region)
+                    challenge = self._locate_challenge(frame)
+
+                    if challenge is None:
+                        missing_frames += 1
+                        if missing_frames >= 5:
+                            logger.info("✅ Fishing challenge finished")
+                            return True
+                        time.sleep(0.05)
+                        continue
+
+                    missing_frames = 0
+                    fish_y, bar_y = challenge
+
+                    if bar_y > fish_y + 8 and not space_down:
+                        self.input_controller.keyboard.key_down("space")
+                        space_down = True
+                    elif bar_y < fish_y - 8 and space_down:
+                        self.input_controller.keyboard.key_up("space")
+                        space_down = False
+
+                    time.sleep(0.03)
+            finally:
+                if space_down:
+                    self.input_controller.keyboard.key_up("space")
+
+        logger.warning("Fishing challenge timed out")
+        return False
+
+    def _wait_for_challenge(self, screen_capture: ScreenCapture) -> Optional[Tuple[float, float]]:
+        """Wait briefly for the fishing challenge UI after pulling."""
+        deadline = time.time() + 1.5
+        while self.running and time.time() < deadline:
+            frame = screen_capture.capture(self.game_region)
+            challenge = self._locate_challenge(frame)
+            if challenge is not None:
+                return challenge
+            time.sleep(0.05)
+        return None
+
+    def _locate_challenge(self, frame: np.ndarray) -> Optional[Tuple[float, float]]:
+        """Return (fish_y, bar_y) for the fishing challenge, if visible."""
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        dark = cv2.inRange(hsv, np.array([0, 0, 0]), np.array([180, 255, 55]))
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(dark)
+
+        candidates = []
+        for label in range(1, count):
+            x, y, w, h, area = stats[label]
+            if 8 <= w <= 40 and h >= frame.shape[0] * 0.22 and area >= 500:
+                candidates.append((h, area, x, y, w))
+
+        if not candidates:
+            return None
+
+        _, _, rail_x, _, rail_w = max(candidates)
+        rail_center_x = rail_x + rail_w // 2
+        x0 = max(0, rail_center_x - 35)
+        x1 = min(frame.shape[1], rail_center_x + 35)
+
+        rail_dark = dark[:, max(0, rail_center_x - 10):min(frame.shape[1], rail_center_x + 10)]
+        ys = np.where(rail_dark > 0)[0]
+        if ys.size == 0:
+            return None
+
+        y0 = max(0, int(ys.min()) - 10)
+        y1 = min(frame.shape[0], int(ys.max()) + 10)
+        roi = hsv[y0:y1, x0:x1]
+        gray_roi = cv2.cvtColor(frame[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+
+        purple = cv2.inRange(roi, np.array([135, 70, 70]), np.array([175, 255, 255]))
+        blue_x0 = max(0, rail_center_x - 12 - x0)
+        blue_x1 = min(roi.shape[1], rail_center_x + 12 - x0)
+        blue = cv2.inRange(roi[:, blue_x0:blue_x1], np.array([85, 80, 120]), np.array([115, 255, 255]))
+
+        fish_y = self._fish_template_center_y(gray_roi, y0)
+        if fish_y is None:
+            fish_y = self._mask_center_y(purple, y0, min_area=40)
+        bar_y = self._mask_center_y(blue, y0, min_area=25)
+        if fish_y is None or bar_y is None:
+            return None
+
+        return fish_y, bar_y
+
+    def _fish_template_center_y(self, gray_roi: np.ndarray, offset_y: int) -> Optional[float]:
+        if not self._challenge_fish_templates:
+            return None
+
+        edges = cv2.Canny(gray_roi, 50, 150)
+        best_score = 0.0
+        best_y = None
+
+        for template in self._challenge_fish_templates:
+            if template.shape[0] > edges.shape[0] or template.shape[1] > edges.shape[1]:
+                continue
+
+            result = cv2.matchTemplate(edges, template, cv2.TM_CCOEFF_NORMED)
+            _, score, _, location = cv2.minMaxLoc(result)
+            if score > best_score:
+                best_score = score
+                best_y = location[1] + template.shape[0] / 2 + offset_y
+
+        if best_score < 0.18:
+            return None
+
+        return float(best_y)
+
+    def _mask_center_y(self, mask: np.ndarray, offset_y: int, min_area: int) -> Optional[float]:
+        count, labels, stats, centers = cv2.connectedComponentsWithStats(mask)
+        best = None
+        for label in range(1, count):
+            area = stats[label, cv2.CC_STAT_AREA]
+            if area >= min_area and (best is None or area > stats[best, cv2.CC_STAT_AREA]):
+                best = label
+
+        if best is None:
+            return None
+
+        return float(centers[best][1] + offset_y)
 
     def _detect_water(self) -> Optional[Tuple[int, int]]:
         """Detect water and return center position."""
@@ -435,7 +587,7 @@ class FishingBot:
                 else:
                     consecutive_detections = 0
 
-                if consecutive_detections >= 2:
+                if consecutive_detections >= 4:
                     logger.info(f"💧 Bubble DETECTED! time={elapsed:.0f}ms, change={percentage:.2f}%")
                     return True
 

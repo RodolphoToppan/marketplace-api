@@ -47,6 +47,30 @@ class KeyboardController:
             logger.error(f"Failed to press key '{key}': {e}")
             raise
 
+    def key_down(self, key: str) -> None:
+        """Hold a key down."""
+        if self.dry_run:
+            logger.info(f"DRY_RUN - key_down(key='{key}')")
+            return
+
+        try:
+            keyboard.press(key)
+        except Exception as e:
+            logger.error(f"Failed to hold key '{key}': {e}")
+            raise
+
+    def key_up(self, key: str) -> None:
+        """Release a held key."""
+        if self.dry_run:
+            logger.info(f"DRY_RUN - key_up(key='{key}')")
+            return
+
+        try:
+            keyboard.release(key)
+        except Exception as e:
+            logger.error(f"Failed to release key '{key}': {e}")
+            raise
+
     def press_hotkey(self, *keys: str, interval: float = 0.05) -> None:
         """
         Press a combination of keys (hotkey).
