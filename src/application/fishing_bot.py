@@ -110,7 +110,7 @@ class FishingBot:
 
         # Last water position
         self._last_water_pos: Optional[Tuple[int, int]] = None
-        self._rod_cast_for_next_cycle = False
+        self._rod_already_cast = False
 
         logger.info("FishingBot initialized")
 
@@ -185,8 +185,8 @@ class FishingBot:
 
     def _execute_fishing_cycle(self) -> None:
         """Execute one complete fishing cycle - MODO ULTRA-RÁPIDO."""
-        if self._rod_cast_for_next_cycle:
-            self._rod_cast_for_next_cycle = False
+        if self._rod_already_cast:
+            self._rod_already_cast = False
         else:
             # Step 1: Detect water
             water_pos = self._detect_water()
@@ -208,15 +208,7 @@ class FishingBot:
         if bubble_detected:
             self._pull_fish()
 
-            # MODO ULTRA-RÁPIDO: Espera mínima (collect_wait_ms) + recast_delay_ms
-            # Jogador focado: fisgar → 1s → lançar de novo (SEM esperar loot!)
-            total_wait = self.settings.fishing.timing.collect_wait_ms + self.settings.fishing.timing.recast_delay_ms
-            if total_wait > 0:
-                time.sleep(total_wait / 1000)
-
-            if self.running:
-                self._cast_rod()
-                self._rod_cast_for_next_cycle = True
+            self._recast_rod()
 
             self.stats["successful_catches"] += 1
         else:
@@ -228,6 +220,16 @@ class FishingBot:
         # Step 6: Cooldown final mínimo (já lançou acima se sucesso)
         if not bubble_detected:
             self._cooldown()
+
+    def _recast_rod(self) -> None:
+        """Recast without re-detecting water after a successful catch."""
+        total_wait = self.settings.fishing.timing.collect_wait_ms + self.settings.fishing.timing.recast_delay_ms
+        if total_wait > 0:
+            time.sleep(total_wait / 1000)
+
+        if self.running:
+            self._cast_rod()
+            self._rod_already_cast = True
 
     def _detect_water(self) -> Optional[Tuple[int, int]]:
         """Detect water and return center position."""
@@ -393,6 +395,10 @@ class FishingBot:
         start_time = time.time()
         check_count = 0
         consecutive_detections = 0
+        stable_frames = 0
+        detector_armed = False
+        arming_timeout_ms = 1200
+        change_threshold = max(0.2, (1.0 - self.settings.fishing.bubble_detection.sensitivity) * 5)
 
         with self.screen_capture:
             for _ in range(max_checks):
@@ -411,13 +417,25 @@ class FishingBot:
                 if check_count % 10 == 0:
                     logger.debug(f"Check #{check_count}: change={percentage:.2f}%")
 
+                elapsed = (time.time() - start_time) * 1000
+                if not detector_armed:
+                    if percentage < change_threshold:
+                        stable_frames += 1
+                    else:
+                        stable_frames = 0
+
+                    if stable_frames >= 3 or elapsed >= arming_timeout_ms:
+                        detector_armed = True
+                    else:
+                        time.sleep(check_interval / 1000)
+                        continue
+
                 if change_detected:
                     consecutive_detections += 1
                 else:
                     consecutive_detections = 0
 
                 if consecutive_detections >= 2:
-                    elapsed = (time.time() - start_time) * 1000
                     logger.info(f"💧 Bubble DETECTED! time={elapsed:.0f}ms, change={percentage:.2f}%")
                     return True
 
