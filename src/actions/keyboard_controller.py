@@ -3,6 +3,7 @@
 import time
 from typing import Optional
 import keyboard
+import pyautogui
 
 from ..observability import get_logger
 
@@ -94,6 +95,27 @@ class KeyboardController:
         except Exception as e:
             logger.error(f"Failed to press hotkey {keys}: {e}")
             raise
+
+    def press_space_for_game(self) -> None:
+        """Try the common input paths games accept for the space key."""
+        if self.dry_run:
+            logger.info("DRY_RUN - press_space_for_game()")
+            return
+
+        errors = []
+        for action in (
+            lambda: keyboard.press_and_release("space"),
+            lambda: keyboard.press_and_release(57),
+            lambda: pyautogui.press("space"),
+        ):
+            try:
+                action()
+                logger.info("✓ Pressed space")
+                return
+            except Exception as e:
+                errors.append(str(e))
+
+        raise RuntimeError(f"Failed to press space: {'; '.join(errors)}")
 
     def hold_key(self, key: str, duration: float) -> None:
         """
